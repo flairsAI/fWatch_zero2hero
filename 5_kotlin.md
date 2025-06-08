@@ -1,3 +1,8 @@
+我是不还需要快速入门java? kotlin呢?
+如果是的话, 给我一个相关语言的快速入门教程, 最好是Linux版的, 最好可以在manjaro linux上官方库直接安装的
+
+---
+
 您的判断非常正确。虽然您的核心AI代码将用C++在NDK中完成，但您仍然需要用一种“官方”语言来构建应用的“外壳”并与Wear OS系统交互。
 
 **结论先行：您不需要成为Java专家，但您确实需要快速入门Kotlin。**
@@ -45,7 +50,7 @@ Manjaro基于Arch Linux，其包管理器`pacman`和社区软件仓库AUR非常�
 
     *   **使用snap (如果已安装):**
         ```bash
-        sudo snap install android-studio
+        sudo snap install android-studio --classic
         ```
 
 #### **第一步：命令行中的 "Hello, World" (验证环境)**
