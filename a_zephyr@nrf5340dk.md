@@ -26,9 +26,9 @@
     4.  安装完成后，点击已安装SDK版本旁边的 **Open VS Code** 按钮。这会自动以正确的环境配置启动Visual Studio Code。
 *   **预期结果：** 您会看到一个VS Code窗口，左侧边栏多了一个“nRF CONNECT”的图标。您的大本营建好了！
 
-```
-先[去这里](https://www.nordicsemi.com/Products/Development-tools/nRF-Util?lang=en), 下载nRF-Util (nRF Command Line Tools的替代者)
-```
+---
+
+先[去这里](https://www.nordicsemi.com/Products/Development-tools/nRF-Util?lang=en), 下载nRF-Util (nrf5x-command-line-tools的替代者)
 
 ---
 
