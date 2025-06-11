@@ -28,7 +28,8 @@
 
 ---
 
-先[去这里](https://www.nordicsemi.com/Products/Development-tools/nRF-Util?lang=en), 下载nRF-Util (nrf5x-command-line-tools的替代者)
+- 先去[这里](https://www.nordicsemi.com/Products/Development-tools/nRF-Util), 下载nRF-Util (nrf5x-command-line-tools的替代者)
+- 去[这里](https://www.nordicsemi.com/Products/Development-tools/nrf-connect-for-desktop), 下载nrf-connect-for-desktop (appimage for all)
 
 ---
 
