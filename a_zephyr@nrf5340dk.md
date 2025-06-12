@@ -28,11 +28,78 @@
 
 ---
 
-- 先去[这里](https://www.nordicsemi.com/Products/Development-tools/nRF-Util), 下载`nRF-Util` (nrf5x-command-line-tools的替代者)
+#### **Linux环境 nRF Connect SDK v3.0.0 手动安装终极指南**
+
+**第一阶段: 安装核心依赖**
+
+```bash
+# 更新系统
+# 安装基础工具...
+# 安装 west
+pip install west
+```
+
+- 去[这里](https://www.nordicsemi.com/Products/Development-tools/nRF-Util), 下载`nRF-Util` (nrf5x-command-line-tools的替代者)
 - 去[这里](https://www.nordicsemi.com/Products/Development-tools/nrf-connect-for-desktop), 下载`nrf-connect-for-desktop` (appimage for all)
 - 下载和安装`sdk-manager`: `./nrfutil install sdk-manager`
-- 下载和安装`nordic connect sdk` (ncs): `./nrfutil sdk-manager toolchain install --ncs-version v3.0.0` (巨大, 但手动不行)
+- 下载和安装`nordic connect sdk` (ncs): `./nrfutil sdk-manager toolchain install --ncs-version v3.0.0` (巨大, 但手动不行, 采用下面的方法)
 
+**第二阶段: 手动安装 Zephyr SDK (工厂设备)**
+
+1.  **访问官方仓库：**
+    打开浏览器，访问 `https://github.com/zephyrproject-rtos/sdk-ng/releases`。
+
+2.  **下载SDK全量包：**
+    找到与您目标NCS版本匹配的最新Zephyr SDK版本（例如 `v0.17.1`），下载适合您系统的 **Full SDK Bundle**。
+    *   **目标文件：** `zephyr-sdk-0.17.1_linux-x86_64.tar.xz`
+
+3.  **解压并安装：**
+    ```bash
+    # 移动到家目录
+    cd ~
+    # 解压, 得到zephyr-sdk-0.17.1文件夹
+    tar -xvf zephyr-sdk-0.17.1_linux-x86_64.tar.xz
+    mv zephyr-sdk-0.17.1 /opt/ # 移动到目标位置
+    # 进入目录并运行安装脚本
+    cd /opt/zephyr-sdk-0.17.1
+    ./setup.sh
+    ```
+
+4.  **配置环境变量：**
+    将以下两行添加到您的 `~/.profile` 文件。
+
+    ```bash
+    export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+    export ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk-0.17.1
+    ```
+    
+5. 检查 `/opt/zephyr-sdk-0.17.1/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc --version`
+   
+**第三阶段: 克隆 nRF Connect SDK 源码 (设计蓝图)**
+
+1.  **创建并进入工作目录：**
+    ```bash
+    mkdir ~/ncs
+    cd ~/ncs
+    ```
+
+2.  **初始化仓库：**
+    ```bash
+    # (可选，但国内网络强烈建议) 设置Gitee镜像环境变量 # 这个网址似乎有误??
+    export ZEPHYR_MODULES=https://gitee.com/mirrors/zephyr-project-modules
+
+    # 初始化，拉取v3.0.0版本的主说明书
+    west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.0.0
+    ```
+
+3.  **更新所有子模块：**
+    ```bash
+    # west会根据主说明书和Gitee镜像，高速下载所有源码
+    west update
+    ```
+
+---
+==========================================
 ---
 
 ### **Day 1: 点亮世界的第一个灯 (Blinky)**
