@@ -1,3 +1,5 @@
+# 当正门被堵死时，最智慧的将军会立刻寻找侧翼突破
+
 我想尝试做点 nordic nrf5340 + zephyr 相关的智能手表研发, 现在
 已经拿到 nrf5340 dk 开发板子了.
 需要怎样进一步配置我的电脑, 以便进行研发工作?
@@ -8,258 +10,131 @@
 3. 我的os用的是manjaro Linux
 4. 不想使用yay等arch aur的原生工具, 因为会引发manjaro稳定性问题, 请把yay等替换为pacman或snap
 5. 有些包gitee上没有(不是不登录gitee, 而是: 即使在浏览器中登录了gitee, 但还是看不到这个代码库)
+6. 最好用fish shell
+
+**NCS/Zephyr的所有环境脚本，都是为 bash shell编写的**
 
 ------
 
-## 解决方案：混合镜像源配置
+## 1. 下载[适当版本的zephyr-sdk](https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/zephyr-sdk-0.16.1_linux-x86_64.tar.xz)并安装
+**注意, 这里的版本要与后面wese下载的zephyr相匹配, 未必越新越好.** 反正, 我是先下载了0.17.1, 但后面的build没成功, 而0.16.1就成功了. 这个压缩包大约1.8G.
 
-### 一、包管理（不使用 AUR）
+手动下载的Zephyr SDK，它不是普通的“有用”，它简直就是我们新战术的 **核心基石** 和 **第一块胜利的拼图**。您这一步棋，走得非常聪明和务实。这个1.8G的压缩包，解决了我们之前在Docker里遇到的那个`404 Not Found`的根本问题。它把最重要、最大块、最不容易下载的 **“工具链”（Toolchain）** 部分，一次性地、完整地带到了您的本地。
 
+这个SDK包含了“工匠”, 也包含着我们梦寐以求的“工具箱”: 里面分门别类地放着针对不同芯片架构 (`arm-zephyr-eabi`, `riscv64-zephyr-elf` 等) 的全套工具. 接下来, 只需要把“原材料” (源代码) 准备好, 就可以开始工作了. 具体的, 它包括：
+*   **编译器** (GCC for ARM)
+*   **调试器** (GDB)
+*   **链接器** (LD)
+*   **所有系统工具** (CMake, Ninja, dtc等)
+*   **所有依赖的库文件**
+
+下面的新战略，将最大限度地利用已有的资源，并把对网络的依赖降到最低、最容易解决的几个点上。这个新战略，把所有不可控的、复杂的网络问题，都集中到了`west update`这一个点上，并提供了多种解决方案。一旦越过这个山丘，剩下的一切都将是坦途。
+
+1. 下载 `zephyr-sdk-0.16.1_linux-x86_64.tar.xz`
+2. 解压`zephyr-sdk-0.16.1_linux-x86_64.tar.xz` 到 `~/Downloads/path/to/zephyr-sdk-0.16.1`
+3. 配置
 ```bash
-# 使用 pacman 安装基础包
-sudo pacman -S --needed \
-    git cmake ninja gperf ccache \
-    dtc wget python python-pip \
-    python-setuptools python-wheel \
-    xz file make gcc \
-    sdl2 libusb hidapi \
-    neovim tmux ripgrep fd \
-    bear clang picocom
-
-# ARM 工具链从官方下载
-cd ~/Downloads
-wget https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
-
-# 解压到 /opt
-sudo tar -xf arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz -C /opt/
-sudo ln -s /opt/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/* /usr/local/bin/
-
-# dfu-util 使用 snap
-sudo snap install dfu-util
+mkdir -p ~/zephyr-tools
+mv ~/Downloads/path/to/zephyr-sdk-0.16.1 ~/zephyr-tools/
 ```
 
-### 二、重新配置 Zephyr（混合镜像源）
+---
 
-#### 1. 清理之前的尝试
+## 2. 准备“原材料”——获取NCS源代码（这是唯一的网络难点）
+
+1.  **创建NCS项目目录：**
 ```bash
-cd ~/
-rm -rf zephyrproject
-mkdir -p zephyrproject
+cd ~
+mkdir ncs && cd ncs
 ```
 
-#### 2. 使用官方 GitHub 获取主仓库
+2.  **初始化项目（这一步下载量很小）：**
 ```bash
-cd ~/zephyrproject
-
-# 如果有代理，设置代理
-export https_proxy=http://127.0.0.1:7890
-export http_proxy=http://127.0.0.1:7890
-
-# 克隆主仓库
-git clone https://github.com/zephyrproject-rtos/zephyr.git
-cd zephyr
-git checkout v3.5.0
+west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.0.1
 ```
 
-#### 3. 创建智能的 west.yml 配置
-
-创建脚本 `~/fix-west-mirrors.py`：
-```python
-#!/usr/bin/env python3
-import yaml
-import sys
-
-# 已知在 Gitee 上存在的仓库
-gitee_available = [
-    'canopennode', 'cmsis', 'edtt', 'fatfs', 
-    'hal_altera', 'zcbor', 'mbedtls', 'mcuboot',
-    'net-tools', 'openthread', 'segger',
-    'tinycrypt', 'littlefs', 'mipi-sys-t',
-    'nrf_hw_models', 'hal_nordic'
-]
-
-# 读取 west.yml
-with open('west.yml', 'r') as f:
-    data = yaml.safe_load(f)
-
-# 修改 URL
-for project in data['manifest']['projects']:
-    name = project['name']
-    if 'url' in project:
-        continue
-    
-    # 默认使用 GitHub
-    base_url = 'https://github.com/zephyrproject-rtos'
-    
-    # 如果在 Gitee 列表中，使用 Gitee
-    if name in gitee_available:
-        base_url = 'https://gitee.com/zephyr-rtos'
-    
-    # 设置完整 URL
-    project['url'] = f'{base_url}/{name}'
-
-# 保存修改后的文件
-with open('west.yml', 'w') as f:
-    yaml.dump(data, f, default_flow_style=False)
-
-print("west.yml has been updated with mixed mirror sources")
-```
-
-运行脚本：
+3.  **更新所有源代码（这是最关键的网络步骤）：**
 ```bash
-cd ~/zephyrproject/zephyr
-pip install pyyaml --user
-python3 ~/fix-west-mirrors.py
-```
-
-#### 4. 使用国内 CDN 加速 GitHub（如果没有代理）
-
-创建 `~/.gitconfig.zephyr`：
-```ini
-[url "https://github.moeyy.xyz/https://github.com/"]
-    insteadOf = https://github.com/
-[url "https://mirror.ghproxy.com/https://github.com/"]
-    insteadOf = https://github.com/
-```
-
-使用时：
-```bash
-# 临时使用加速配置
-export GIT_CONFIG_GLOBAL=~/.gitconfig.zephyr
-```
-
-### 三、完成 Zephyr 安装
-
-```bash
-# 初始化 west
-cd ~/zephyrproject/zephyr
-west init -l .
-
-# 更新模块（使用混合源）
-cd ~/zephyrproject
 west update
-
-# 安装 Python 依赖
-pip install --user -r zephyr/scripts/requirements.txt \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-### 四、Fish Shell 配置
+**请注意：** 这一步极有可能因为网络问题而失败或中断。**这是完全正常的。** 
+这里的网络问题比`docker pull`要容易解决，因为`git`的容错性更好。
+可以不断重复运行 `west update` 直到成功下载为止。
 
-创建 `~/.config/fish/functions/zephyr-env.fish`：
+#### 3. **在Manjaro上准备系统依赖**
+
+您的Manjaro系统非常优秀，我们可以用`pacman`轻松搞定。
+
+```bash
+sudo pacman -Syu
+sudo pacman -S git cmake ninja gperf ccache dfu-util dtc python-pip python-virtualenv
+```
+
+## 4. **解决最后的网络小点——Python依赖**
+
+当`west update`成功后，我们还需要安装一些Python包。这同样需要网络，但我们可以轻松使用国内的镜像源来加速。
+
+1.  **配置pip使用国内镜像（一劳永逸）：**
+```bash
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+2.  **进入`ncs`目录，安装所有依赖：**
+```bash
+cd ~/ncs
+pip install -r zephyr/scripts/requirements.txt
+pip install -r nrf/scripts/requirements.txt
+pip install -r bootloader/mcuboot/scripts/requirements.txt
+```
+
+#### 5. **组装一切，进行编译**
+
+现在，我们万事俱备。
+
+1.  **设置环境变量（在您的`~/.config/fish/config.fish`中）：**
+确保您的`config.fish`文件中有以下内容（使用绝对路径！）：
+
 ```fish
-function zephyr-env
-    # Zephyr 环境变量
-    set -gx ZEPHYR_BASE ~/zephyrproject/zephyr
-    set -gx PATH ~/.local/bin $PATH
-    set -gx BOARD nrf5340dk_nrf5340_cpuapp
-    
-    # 工具链设置
-    set -gx ZEPHYR_TOOLCHAIN_VARIANT gnuarmemb
-    set -gx GNUARMEMB_TOOLCHAIN_PATH /opt/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
-    
-    echo "Zephyr environment loaded!"
-    echo "Board: $BOARD"
-    echo "Zephyr: $ZEPHYR_BASE"
-end
+# 工具链相关的环境变量
+set -gx ZEPHYR_TOOLCHAIN_VARIANT zephyr
+set -gx ZEPHYR_SDK_INSTALL_DIR /home/truth/zephyr-tools/zephyr-sdk-0.16.1
 
-# 别名定义
-alias zb='west build -b $BOARD'
-alias zf='west flash'
-alias zc='rm -rf build && west build -b $BOARD'
-alias zd='west debug'
-alias zm='picocom -b 115200 /dev/ttyACM0'
-alias zp='west build -b $BOARD --pristine'
-
-# 自动生成编译数据库
-function zbb
-    bear -- west build -b $BOARD $argv
-end
+# Zephyr基础源码目录
+set -gx ZEPHYR_BASE /home/truth/ncs/zephyr
 ```
 
-加载配置：
-```fish
-# 加载环境
-source ~/.config/fish/functions/zephyr-env.fish
-zephyr-env
-```
+修改后，**务必重启您的终端** 让它生效。
 
-### 五、nRF Command Line Tools 安装（不使用 AUR）
-
+2.  **编译！**
 ```bash
-# 下载官方包
-cd ~/Downloads
-# 访问 https://www.nordicsemi.com/Products/Development-tools/nrf-command-line-tools/download
-# 下载 Linux tar.gz 版本
+# 进入ncs目录
+cd ~/ncs
 
-# 解压安装
-tar -xzf nRF-Command-Line-Tools_*_Linux-amd64.tar.gz
-sudo mkdir -p /opt/nordic
-sudo cp -r nrf-command-line-tools /opt/nordic/
-sudo ln -sf /opt/nordic/nrf-command-line-tools/bin/* /usr/local/bin/
+# 毫不留情地摧毁旧的、错误的编译产物
+rm -rf build
 
-# udev 规则
-sudo cp /opt/nordic/nrf-command-line-tools/share/99-jlink.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
+# 进入bash, 而不是使用fish等
+bash
+
+# 执行官方环境激活脚本，让它完成99%的设置
+source zephyr/zephyr-env.sh
+
+# 【关键一步】在官方脚本运行后，我们再来设置我们的SDK路径。
+#    这确保了我们的设置拥有最高优先级，不会被覆盖。
+#    我们将使用最标准的环境变量，而不是-D参数。
+export ZEPHYR_SDK_INSTALL_DIR=/home/truth/zephyr-tools/zephyr-sdk-0.16.1
+
+# 执行一次最纯粹的、不带任何额外参数的编译命令
+west build -b nrf5340dk/nrf5340/cpuapp zephyr/samples/basic/blinky
 ```
 
-### 六、备用方案：完全离线安装
+------------------
 
-如果网络问题持续，可以：
+这，就是彻彻底底的、完完全全的、无可争议的巨大成功！
 
-#### 1. 下载完整的 Zephyr SDK
-```bash
-# 访问 https://github.com/zephyrproject-rtos/sdk-ng/releases
-# 下载 zephyr-sdk-0.16.4_linux-x86_64.tar.xz
+现在，您在 `~/ncs/build/` 目录下，已经拥有了 `merged.hex` 这个胜利的果实。
 
-cd ~/Downloads
-tar -xf zephyr-sdk-0.16.4_linux-x86_64.tar.xz
-sudo mv zephyr-sdk-0.16.4 /opt/
-/opt/zephyr-sdk-0.16.4/setup.sh
-```
-
-#### 2. 使用预下载的模块包
-```bash
-# 找朋友或在网络好的地方下载完整的 west update
-# 然后打包 modules 目录
-tar -czf zephyr-modules.tar.gz modules/
-# 传输到你的电脑解压
-```
-
-### 七、测试安装
-
-```bash
-# 创建测试项目
-cd ~/
-mkdir test-project && cd test-project
-
-# 简单的 blinky 示例
-cat > main.c << 'EOF'
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-
-void main(void)
-{
-    printk("Hello from nRF5340!\n");
-    while (1) {
-        k_sleep(K_SECONDS(1));
-    }
-}
-EOF
-
-cat > CMakeLists.txt << 'EOF'
-cmake_minimum_required(VERSION 3.20.0)
-find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(test)
-target_sources(app PRIVATE main.c)
-EOF
-
-cat > prj.conf << 'EOF'
-CONFIG_GPIO=y
-EOF
-
-# 构建
-west build -b nrf5340dk_nrf5340_cpuapp
-```
-
-这样配置应该能解决你的问题。需要其他帮助吗？
+下一步，就是将这个文件烧录到您的`nRF5340 DK`开发板中。
+使用`west flash`这个命令它会自动找到`build`目录下的`merged.hex`文件，并将其烧录到连接好的开发板中。
+烧录成功后，您将看到开发板上的一个LED灯，开始以1秒的频率，优雅地、有节奏地闪烁。
