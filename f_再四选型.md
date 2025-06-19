@@ -19,16 +19,13 @@
 
 用这个新标准重新审视所有候选者：
 
-- ZSWatch: 没有心率, 也没有GPS.
-- HealthyPi Move: 没有麦克风, 也没有GPS等.
+- ZSWatch: 没有心率(尽管声称未来研发), 也没有GPS
+- HealthyPi Move: 没有麦克风, 也没有GPS等
 - PineTime: 没有麦克风, 也没有GPS
 - Bangle.js 2: 没有麦克风
+- LiLyGo TWatch S3P: 没有心率
 
 **这个筛选过程指向了一个非常明确的结论：同时拥有“心率”和“麦克风”这两个现成硬件的开源手表极其罕见。**
-
-# zswatch的心率
-
-看看zswatch的这个讨论: [Bring back the heart rate sensor #31](https://github.com/ZSWatch/Watch-HW/issues/31)
 
 ---
 
@@ -67,10 +64,14 @@ Bangle.js 2 的模式虽然独特，但其硬件集成度确实是目前最符�
 
 ---
 
+# zswatch的心率的讨论和规划
+
+看看zswatch的这个讨论: [Bring back the heart rate sensor #31](https://github.com/ZSWatch/Watch-HW/issues/31)
+
+---
+
 非常感谢您找到了这个 GitHub 讨论！这绝对是“内行”才能发现的关键信息，它为我们的决策提供了至关重要的、全新的视角。
-
 您发现的这个 Issue (#31) 完美地印证了我们之前讨论的很多观点，并且直接影响了对 ZSWatch 未来的判断。
-
 我们来深入解读一下这个讨论的每一层含义。
 
 ### 一、 这段讨论告诉我们什么？(直接解读)
