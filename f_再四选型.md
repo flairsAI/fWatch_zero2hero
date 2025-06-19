@@ -71,7 +71,7 @@ ZSWatch 的核心使命，不是成为一个“功能大而全”的手表，而
 **规避风险：** 心率传感器（特别是其算法部分）是一个巨大的“坑”。
 将它引入项目，会带来无穷无尽的维护工作和用户抱怨（“为什么我的心率测不准？”），这会严重分散项目维护者打磨核心平台的精力。
 
-**NOTE:** zswatch 3.0.0 当前的设计中, 仍是没有心率相关模块的, 从[后盖设计](https://github.com/flairsAI/ZSWatch-HW/blob/3.0.0_Dev/cad/case/bottom.stl)就可以看出来 -- 淘汰
+**NOTE:** zswatch 3.0.0 当前的设计中, 仍是没有心率相关模块的, 从 [后盖设计](https://github.com/flairsAI/ZSWatch-HW/blob/3.0.0_Dev/cad/case/bottom.stl) 和 [传感器连接](https://github.com/flairsAI/ZSWatch-HW/blob/3.0.0_Dev/dev-kit/Sensors.kicad_sch) 就可以看出来 -- 淘汰
 
 #### **选择 3：亲力亲为的创造者 —— LILYGO T-Watch-S3**
 *   **策略**：用“系统集成”创造自己的现在。
