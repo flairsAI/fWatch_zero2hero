@@ -368,3 +368,29 @@ int main(void) {
 ************************************************************************/
 
 ```
+
+---
+
+### 步骤三：释放 nRF5340 的真正力量 - 拥抱蓝牙
+
+这是 nRF 系列芯片的“看家本领”，也是最好玩的部分。
+
+#### 王牌项目：蓝牙 LED 和按钮服务 (LBS)
+
+**目标**: 将你的手机变成一个无线遥控器。
+*   在手机 App 上点击按钮，可以点亮/熄灭开发板上的 LED。
+*   按下开发板上的按钮，手机 App 上能收到通知并显示状态。
+
+**你需要什么**:
+*   一部智能手机 (Android/iOS)。
+*   在手机上安装 **nRF Connect for Mobile** 应用（在 Google Play 或 App Store 搜索即可）。这是一个功能强大的官方蓝牙调试工具。
+
+**学习价值**:
+*   **真正入门物联网 (IoT) 开发**。
+*   理解蓝牙低功耗 (Bluetooth Low Energy, BLE) 的核心概念：
+    *   **GATT (Generic Attribute Profile)**: 蓝牙服务的通用规范。
+    *   **服务 (Service)**: 相关功能的集合，比如“LED 按钮服务”。
+    *   **特性 (Characteristic)**: 一个具体的数据点，比如“LED1 的状态”或“按钮1 的状态”。
+    *   **中心设备 (Central)** vs. **外围设备 (Peripheral)**: 你的手机是 Central，nRF5340 DK 是 Peripheral。
+*   **参考示例**: `zephyr/samples/bluetooth/peripheral_lbs`
+    *   这个官方示例**就是为这个目标量身定做的**！你几乎不需要修改代码，直接编译烧录，然后用手机上的 nRF Connect for Mobile App 连接它，就可以开始玩了。
