@@ -32,125 +32,7 @@ nRF5340 DK 已经为我们定义好了板载资源别名：
 
 ### 编写代码
 
-现在，打开项目文件夹中的 `src/main.c` 文件，并用下面的代码替换其全部内容。
-
-```c
-/*
- * If you can't find your glasses, it's because you don't have them on.
- */
-
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/printk.h>
-
-/*
- * 设备树 (DeviceTree) 宏定义
- * 使用 DT_ALIAS() 从设备树中获取节点的别名。
- * 我们需要4个LED和4个按钮。
- */
-#define LED0_NODE DT_ALIAS(led0)
-#define LED1_NODE DT_ALIAS(led1)
-#define LED2_NODE DT_ALIAS(led2)
-#define LED3_NODE DT_ALIAS(led3)
-
-#define SW0_NODE DT_ALIAS(sw0) // sw0 是 button0 的另一个常用别名
-#define SW1_NODE DT_ALIAS(sw1)
-#define SW2_NODE DT_ALIAS(sw2)
-#define SW3_NODE DT_ALIAS(sw3)
-
-// 使用 GPIO_DT_SPEC_GET 宏从设备树节点中提取 GPIO 的完整规格（控制器、引脚号、标志位）
-// 这是一个更现代、更安全的做法。
-static const struct gpio_dt_spec leds[] = {
-    GPIO_DT_SPEC_GET(LED0_NODE, gpios),
-    GPIO_DT_SPEC_GET(LED1_NODE, gpios),
-    GPIO_DT_SPEC_GET(LED2_NODE, gpios),
-    GPIO_DT_SPEC_GET(LED3_NODE, gpios),
-};
-
-static const struct gpio_dt_spec buttons[] = {
-    GPIO_DT_SPEC_GET(SW0_NODE, gpios),
-    GPIO_DT_SPEC_GET(SW1_NODE, gpios),
-    GPIO_DT_SPEC_GET(SW2_NODE, gpios),
-    GPIO_DT_SPEC_GET(SW3_NODE, gpios),
-};
-
-// 定义一个静态的回调结构体，用于处理按钮中断
-static struct gpio_callback button_cb_data;
-
-// 按钮中断回调函数
-// 当任何一个配置了中断的按钮被按下时，这个函数就会被调用
-void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-    // 遍历所有按钮，检查是哪一个触发了中断
-    for (int i = 0; i < ARRAY_SIZE(buttons); i++) {
-        // (1 << buttons[i].pin) 创建一个掩码，检查触发中断的引脚是否是当前按钮的引脚
-        if (pins & (1 << buttons[i].pin)) {
-            printk("Button %d pressed!\n", i + 1);
-            // 切换对应位置LED的状态
-            gpio_pin_toggle_dt(&leds[i]);
-        }
-    }
-}
-
-int main(void)
-{
-    int ret;
-    printk("nRF5340 DK Button-LED demo started!\n");
-
-    // 1. 配置所有LED引脚为输出模式
-    for (int i = 0; i < ARRAY_SIZE(leds); i++) {
-        if (!device_is_ready(leds[i].port)) {
-            printk("Error: LED device %s is not ready\n", leds[i].port->name);
-            return 0;
-        }
-        ret = gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_INACTIVE);
-        if (ret != 0) {
-            printk("Error %d: failed to configure LED %d pin %d\n", ret, i, leds[i].pin);
-            return 0;
-        }
-    }
-
-    // 2. 配置所有按钮引脚为输入模式
-    for (int i = 0; i < ARRAY_SIZE(buttons); i++) {
-        if (!device_is_ready(buttons[i].port)) {
-            printk("Error: Button device %s is not ready\n", buttons[i].port->name);
-            return 0;
-        }
-        // 配置为输入模式
-        ret = gpio_pin_configure_dt(&buttons[i], GPIO_INPUT);
-        if (ret != 0) {
-            printk("Error %d: failed to configure Button %d pin %d\n", ret, i, buttons[i].pin);
-            return 0;
-        }
-        // 配置中断，当引脚变为高电平（按钮按下）时触发
-        ret = gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_EDGE_TO_ACTIVE);
-        if (ret != 0) {
-            printk("Error %d: failed to configure interrupt on pin %d\n", ret, buttons[i].pin);
-            return 0;
-        }
-    }
-
-    // 3. 设置中断回调函数
-    // 初始化回调结构体，指定回调函数和要监控的引脚掩码
-    // 注意：这里我们只使用第一个按钮的控制器(port)来添加回调，因为nRF5340 DK上所有按钮都在同一个GPIO控制器上。
-    // 如果按钮在不同的控制器上，需要为每个控制器单独添加回调。
-    uint32_t pin_mask = 0;
-    for(int i = 0; i < ARRAY_SIZE(buttons); i++) {
-        pin_mask |= (1 << buttons[i].pin);
-    }
-    gpio_init_callback(&button_cb_data, button_pressed, pin_mask);
-    
-    // 将回调函数添加到GPIO驱动中
-    gpio_add_callback(buttons[0].port, &button_cb_data);
-
-    printk("Configuration complete. Press a button...\n");
-
-    // 主循环可以为空，因为所有工作都由中断驱动
-    return 0;
-}
-```
+现在，打开项目文件夹中的 `src/main.c` 文件，并用下面的代码替换其全部内容 (放在本文的最后面) 。
 
 ### 项目配置
 
@@ -258,7 +140,9 @@ source zephyr/zephyr-env.sh
 ```bash
 # -b: 指定目标板。nrf5340dk_nrf5340_cpuapp 表示 nRF5340 DK 的应用核
 # -p auto: (Pristine) 推荐使用，它会在每次构建前清理旧的构建文件，避免奇怪的缓存问题
-west build -b nrf5340dk_nrf5340_cpuapp -p auto
+cd ~/ncs
+mv build build-xxx-backup
+west build -b nrf5340dk/nrf5340/cpuapp myprojects/nrf5340-button-led
 ```
 编译过程的输出会显示在终端。如果一切顺利，你会在项目目录下看到一个 `build` 文件夹，里面包含了所有编译产物，如 `zephyr/zephyr.hex` 和 `zephyr/zephyr.elf`。
 
@@ -310,3 +194,177 @@ west flash
 6.  在另一个终端或 RTT Viewer 中观察结果。
 
 这个流程完全摆脱了对 IDE 的依赖，对于习惯命令行的开发者来说，速度和效率都非常高。
+
+-----------
+
+```c
+
+/* If you can't find your glasses, it's because you don't have them on. */
+
+#include <stdio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/printk.h>
+
+
+/* 1000 msec = 1 sec */
+#define  SLEEP_TIME_MS  1000
+#define  LIGHT_TIME_MS  500
+
+/*
+ * 设备树 (DeviceTree) 宏定义
+ * 使用 DT_ALIAS() 从设备树中获取节点的别名。
+ * 我们需要4个LED和4个按钮。
+ * --- 函数式宏 (Function-like Macro)：可以接受参数的宏，看起来像函数调用
+ * eg, #define MAX(a, b) ((a) > (b) ? (a) : (b)) // 接受 a 和 b 两个参数
+ * --- 对象式宏 (Object-like Macro)：简单的文本替换
+ */
+#define LED0_NODE DT_ALIAS(led0)
+#define LED1_NODE DT_ALIAS(led1)
+#define LED2_NODE DT_ALIAS(led2)
+#define LED3_NODE DT_ALIAS(led3)
+
+#define SW0_NODE DT_ALIAS(sw0) // sw0 是 button0 的另一个常用别名
+#define SW1_NODE DT_ALIAS(sw1)
+#define SW2_NODE DT_ALIAS(sw2)
+#define SW3_NODE DT_ALIAS(sw3)
+
+// 使用 GPIO_DT_SPEC_GET 宏从设备树节点中提取 GPIO 的完整规格（控制器、引脚号、标志位）
+// 这是一个更现代、更安全的做法。
+// A build error on this line means your board is unsupported.
+// See the sample documentation for information on how to fix it.
+static const struct gpio_dt_spec leds[] = {
+    GPIO_DT_SPEC_GET(LED0_NODE, gpios),
+    GPIO_DT_SPEC_GET(LED1_NODE, gpios),
+    GPIO_DT_SPEC_GET(LED2_NODE, gpios),
+    GPIO_DT_SPEC_GET(LED3_NODE, gpios),
+};
+
+static const struct gpio_dt_spec buttons[] = {
+    GPIO_DT_SPEC_GET(SW0_NODE, gpios),
+    GPIO_DT_SPEC_GET(SW1_NODE, gpios),
+    GPIO_DT_SPEC_GET(SW2_NODE, gpios),
+    GPIO_DT_SPEC_GET(SW3_NODE, gpios),
+};
+
+
+// 定义一个静态的回调结构体，用于处理按钮中断
+static struct gpio_callback button_cb_data;
+
+// 定义按钮中断的回调函数
+// 当任何一个配置了中断的按钮被按下时，这个函数就会被调用
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
+    // 遍历所有按钮，检查是哪一个触发了中断
+    for (int i = 0; i < ARRAY_SIZE(buttons); i++) {
+        // (1 << buttons[i].pin) 创建一个掩码，检查触发中断的引脚是否是当前按钮的引脚
+        if (pins & (1 << buttons[i].pin)) {
+            printk("Button %d pressed!\n", i + 1);
+            // 切换对应位置LED的状态
+            gpio_pin_toggle_dt(&leds[i]);
+        }
+    }
+}
+
+
+// 大部分工作放在了主函数
+int main(void) {
+    int ret;
+    printk("nRF5340 DK Button-LED demo started!\n");
+
+    // 1. 配置所有LED引脚为输出模式
+    for (int i = 0; i < ARRAY_SIZE(leds); i++) {
+        if (!device_is_ready(leds[i].port)) {
+            // 这个检查相当有官方样例中的 `if (!gpio_is_ready_dt(&led)) { ... }`
+            printk("Error: LED device %s is not ready\n", leds[i].port->name);
+            return 0;
+        }
+        //
+        // 先把灯都关掉
+        ret = gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_INACTIVE);
+        if (ret != 0) {
+            printk("Error %d: failed to init (set to inactive) LED %d pin %d\n", ret, i, leds[i].pin);
+            return 0;
+        }
+    }
+
+    // 2. 配置所有按钮引脚为输入模式
+    for (int i = 0; i < ARRAY_SIZE(buttons); i++) {
+        if (!device_is_ready(buttons[i].port)) {
+            printk("Error: Button device %s is not ready\n", buttons[i].port->name);
+            return 0;
+        }
+        //
+        // 配置为输入模式
+        ret = gpio_pin_configure_dt(&buttons[i], GPIO_INPUT);
+        if (ret != 0) {
+            printk("Error %d: failed to setup (set to input mode) Button %d pin %d\n", ret, i, buttons[i].pin);
+            return 0;
+        }
+        //
+        // 配置中断，当引脚变为高电平（按钮按下）时触发
+        ret = gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_EDGE_TO_ACTIVE);
+        if (ret != 0) {
+            printk("Error %d: failed to setup (Button) interrupt on pin %d\n", ret, buttons[i].pin);
+            return 0;
+        }
+    }
+
+    // 3. 设置中断回调函数
+    // 初始化回调结构体，指定回调函数和要监控的引脚掩码
+    // 注意：这里我们只使用第一个按钮的控制器(port)来添加回调，因为nRF5340 DK上所有按钮都在同一个GPIO控制器上。
+    // 如果按钮在不同的控制器上，需要为每个控制器单独添加回调。
+    uint32_t pin_mask = 0;
+    for(int i = 0; i < ARRAY_SIZE(buttons); i++) {
+        // 把每一个按钮对应的引脚号，在 pin_mask 中对应的 bit 位置为 1
+        pin_mask |= (1 << buttons[i].pin);
+    }
+    gpio_init_callback(&button_cb_data, button_pressed, pin_mask);
+
+    // 将回调函数添加到GPIO驱动中
+    gpio_add_callback(buttons[0].port, &button_cb_data);
+
+    printk("Configuration complete. Press a button...\n");
+
+    // 主循环可以为空，因为所有工作都由中断驱动
+    return 0;
+}
+
+/************************************************************************
+ *
+ * Zephyr 是一个实时操作系统内核。它的世界里，与PC的情况完全不同：
+
+ *  启动与内核初始化: 当 nRF5340 上电后，它会先执行一些非常底层的启动代码。这些代码会初始化 CPU、时钟等基本硬件。
+
+ *  然后，Zephyr 内核开始接管。内核会初始化它自己需要的所有东西：调度器、内存管理、中断控制器等。
+
+ *  驱动初始化: 接着，内核会根据你的配置 (prj.conf) 和设备树 (.dts)，去初始化所有被启用的设备驱动程序。
+ *  在我们的例子中，GPIO 驱动程序就在这个阶段被初始化并准备就绪。
+
+ *  main 函数作为第一个“线程”启动: 内核完成所有准备工作后，它会把你的 main 函数作为一个线程 (Thread) 来启动。
+ *  在 RTOS 的世界里，main 不再是整个程序的生命线，它仅仅是应用程序的入口线程或主线程 (Main Thread)。
+
+ *  main 函数的使命: 你的 main 函数在这个阶段执行。它的核心使命通常是进行一次性的应用层配置。在我们的代码里，它做了：
+ *      配置 LED 引脚为输出。
+ *      配置 Button 引脚为输入和中断。
+ *      调用 gpio_add_callback()，将 button_pressed 函数的地址和引脚掩码，注册到了 GPIO 驱动程序中。
+ *      这一步至关重要！驱动程序现在“记住”了这个指令。
+
+ *  main 函数的终结: 当 main 函数执行到 return 0; 时，它仅仅意味着主线程的任务完成了。
+ *  内核会回收这个线程所占用的资源（比如它的栈空间）。
+
+ *  内核永不眠 (The Kernel Never Sleeps): 这才是关键！
+ *  即使 main 线程已经结束，Zephyr 内核本身仍然在后台运行。
+ *  内核现在进入了一个无限循环，等待着外部事件的发生。这些事件就是中断 (Interrupts)。
+
+ *  中断发生: 当你按下按钮时：
+ *      GPIO 硬件检测到电平变化，向 CPU 发送一个中断信号。
+ *      CPU 立刻暂停当前所有工作，跳转到预先设置好的中断服务程序 (ISR)。这个 ISR 是 GPIO 驱动程序的一部分。
+ *      驱动程序的 ISR 会快速处理硬件（如清除中断标志），然后检查是哪个引脚触发了中断，并发现这个引脚是它“记住”的需回调的引脚之一。
+ *      驱动程序会通知内核调度器：“嘿，我这里有一个回调函数 (button_pressed) 需要执行！”
+ *      内核调度器会在合适的时机，调用我们之前注册的 button_pressed 函数。
+ *
+************************************************************************/
+
+```
